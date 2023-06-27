@@ -1,5 +1,6 @@
 using UnityEngine;
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -75,7 +76,14 @@ public class Receiver : MonoBehaviour
             do
             {
                 bytesRead = stream.Read(buffer, 0, buffer.Length);
-                messageBuilder.Append(Encoding.UTF8.GetString(buffer, 0, bytesRead));
+                byte[] data = new byte[bytesRead];
+                for (int i = 0; i < bytesRead; i++)
+                {
+                    data[i] = buffer[i];
+                }
+                
+                string decryptedBlock = _chatController.DecryptMessage(data);
+                messageBuilder.Append(decryptedBlock);
             }
             while (stream.DataAvailable);
 
@@ -84,7 +92,7 @@ public class Receiver : MonoBehaviour
             byte[] encryptedMessage = Encoding.UTF8.GetBytes(receivedMessage);
             string decryptedMessage = _chatController.DecryptMessage(encryptedMessage);
 
-            _showMessage.text = decryptedMessage;
+            _showMessage.text = messageBuilder.ToString();
 
             // Close the stream and client
             stream.Close();
