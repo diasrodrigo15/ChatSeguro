@@ -15,7 +15,6 @@ public class ChatController : MonoBehaviour
     [SerializeField] private Button _sendButton;
 
     private RC4 _rc4;
-    private SDES _sdes;
     private byte[] _keyBytes;
 
     private void Awake()
@@ -27,23 +26,22 @@ public class ChatController : MonoBehaviour
     {
         _keyBytes = System.Text.Encoding.UTF8.GetBytes(_key.text);
         _rc4 = new RC4(_keyBytes);
-        _sdes = new SDES();
     }
 
     private void SendEncryptedMessage()
     {
         SetupCyphers();
         string message = _messageInput.text;
-        byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(message);
 
         byte[] encryptedMessage;
         if (_rc4Toggle.isOn) // RC4
         {
+            byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(message);
             encryptedMessage = _rc4.Encrypt(messageBytes);
         }
         else // S-DES
         {
-            encryptedMessage = _sdes.Encrypt(messageBytes, _keyBytes);
+            encryptedMessage = SDES.Encrypt(message, _key.text);
         }
 
         // Enviar a mensagem cifrada para o endereço IP de destino
@@ -79,6 +77,19 @@ public class ChatController : MonoBehaviour
         catch (Exception e)
         {
             Debug.LogError("Error sending message: " + e.Message);
+        }
+    }
+
+    public string DecryptMessage(byte[] encryptedMessage)
+    {
+        if (_rc4Toggle.isOn) // RC4
+        {
+            SetupCyphers();
+            return _rc4.Decrypt(encryptedMessage);
+        }
+        else // S-DES
+        {
+            return SDES.Decrypt(encryptedMessage, _key.text);
         }
     }
 }

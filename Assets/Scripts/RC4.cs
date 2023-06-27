@@ -1,3 +1,5 @@
+using System.Text;
+
 public class RC4
 {
     private byte[] byteMessage;
@@ -45,5 +47,11 @@ public class RC4
         }
 
         return encrypted;
+    }
+    
+    public string Decrypt(byte[] ciphertext)
+    {
+        string result = Encoding.UTF8.GetString(Encrypt(ciphertext));
+        return result; 
     }
 }
