@@ -1,11 +1,8 @@
 using UnityEngine;
 using System;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using DefaultNamespace;
-using TMPro;
 
 public class Receiver : MonoBehaviour
 {
@@ -17,7 +14,7 @@ public class Receiver : MonoBehaviour
     private TcpListener listener;
     private bool isListening = false;
 
-    private void Start()
+    private void Awake()
     {
         StartListening();
     }

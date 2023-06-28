@@ -1,6 +1,5 @@
 using System;
 using System.Net.Sockets;
-using DefaultNamespace;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
