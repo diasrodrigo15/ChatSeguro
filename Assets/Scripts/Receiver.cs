@@ -4,13 +4,15 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using DefaultNamespace;
 using TMPro;
 
 public class Receiver : MonoBehaviour
 {
     [SerializeField] private int listenPort = 3000;
     [SerializeField] private ChatController _chatController;
-    [SerializeField] private TextMeshProUGUI _showMessage;
+    [Space]
+    [SerializeField] private MessageContentGroup _messagesContent;
 
     private TcpListener listener;
     private bool isListening = false;
@@ -88,11 +90,7 @@ public class Receiver : MonoBehaviour
             while (stream.DataAvailable);
 
             // Process the received message
-            string receivedMessage = messageBuilder.ToString();
-            byte[] encryptedMessage = Encoding.UTF8.GetBytes(receivedMessage);
-            string decryptedMessage = _chatController.DecryptMessage(encryptedMessage);
-
-            _showMessage.text = messageBuilder.ToString();
+           _messagesContent.AddMessage(messageBuilder.ToString(), MessageType.Received);
 
             // Close the stream and client
             stream.Close();

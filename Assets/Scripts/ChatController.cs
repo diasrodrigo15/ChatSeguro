@@ -1,5 +1,6 @@
 using System;
 using System.Net.Sockets;
+using DefaultNamespace;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,9 +11,9 @@ public class ChatController : MonoBehaviour
     [SerializeField] private TMP_InputField _ipAddress;
     [SerializeField] private TMP_InputField _messageInput;
     [SerializeField] private Toggle _rc4Toggle;
-    [SerializeField] private Toggle _sdesToggle;
-
+    [SerializeField] private MessageContentGroup _messageContent;
     [SerializeField] private Button _sendButton;
+    [SerializeField] private TextMeshProUGUI _errorMessage;
 
     private RC4 _rc4;
     private byte[] _keyBytes;
@@ -20,6 +21,7 @@ public class ChatController : MonoBehaviour
     private void Awake()
     {
         _sendButton.onClick.AddListener(SendEncryptedMessage);
+        _errorMessage.enabled = false;
     }
     
     private void SetupCyphers()
@@ -47,6 +49,8 @@ public class ChatController : MonoBehaviour
         // Enviar a mensagem cifrada para o endereço IP de destino
         SendDataInNetwork(encryptedMessage);
 
+        // Process the received message
+        _messageContent.AddMessage(message, MessageType.Sent);
         _messageInput.text = string.Empty;
     }
     
@@ -71,12 +75,13 @@ public class ChatController : MonoBehaviour
             // Close the stream and client
             stream.Close();
             client.Close();
-
-            Debug.Log("Message sent successfully!");
+            
+            _errorMessage.enabled = false;
         }
         catch (Exception e)
         {
-            Debug.LogError("Error sending message: " + e.Message);
+            _errorMessage.enabled = true;
+            _errorMessage.text = "Error sending message: " + e.Message;
         }
     }
 
