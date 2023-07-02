@@ -6,13 +6,19 @@ using UnityEngine.UI;
 
 public class ChatController : MonoBehaviour
 {
+    private const int SDES_OPTION = 0;
+    private const int RC4_OPTION = 1;
+    private const int CBC_OPTION = 2;
+    private const int EBC_OPTION = 3;
+    
     [SerializeField] private TMP_InputField _key;
     [SerializeField] private TMP_InputField _ipAddress;
     [SerializeField] private TMP_InputField _messageInput;
-    [SerializeField] private Toggle _rc4Toggle;
+    [SerializeField] private TMP_Dropdown _cypherMode;
     [SerializeField] private MessageContentGroup _messageContent;
     [SerializeField] private Button _sendButton;
     [SerializeField] private TextMeshProUGUI _errorMessage;
+    [SerializeField] private byte[] iv;
 
     private RC4 _rc4;
     private byte[] _keyBytes;
@@ -34,15 +40,20 @@ public class ChatController : MonoBehaviour
         SetupCyphers();
         string message = _messageInput.text;
 
-        byte[] encryptedMessage;
-        if (_rc4Toggle.isOn) // RC4
+        byte[] encryptedMessage = new byte[] { };
+        switch (_cypherMode.value)
         {
-            byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(message);
-            encryptedMessage = _rc4.Encrypt(messageBytes);
-        }
-        else // S-DES
-        {
-            encryptedMessage = SDES.Encrypt(message, _key.text);
+            case SDES_OPTION:
+            case EBC_OPTION:
+                encryptedMessage = SDES.Encrypt(message, _key.text);
+                break;
+            case RC4_OPTION:
+                byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(message);
+                encryptedMessage = _rc4.Encrypt(messageBytes);
+                break;
+            case CBC_OPTION:
+                encryptedMessage = SDES.Encrypt(message, _key.text, true);
+                break;
         }
 
         // Enviar a mensagem cifrada para o endereço IP de destino
@@ -86,14 +97,18 @@ public class ChatController : MonoBehaviour
 
     public string DecryptMessage(byte[] encryptedMessage)
     {
-        if (_rc4Toggle.isOn) // RC4
+        switch (_cypherMode.value)
         {
-            SetupCyphers();
-            return _rc4.Decrypt(encryptedMessage);
+            case SDES_OPTION:
+            case EBC_OPTION:
+                return SDES.Decrypt(encryptedMessage, _key.text);
+            case RC4_OPTION:
+                SetupCyphers();
+                return _rc4.Decrypt(encryptedMessage);
+            case CBC_OPTION:
+                return SDES.Decrypt(encryptedMessage, _key.text, true);
         }
-        else // S-DES
-        {
-            return SDES.Decrypt(encryptedMessage, _key.text);
-        }
+
+        return "<color=Red>ERRO:</color> Não foi escolhido modo de cifra";
     }
 }

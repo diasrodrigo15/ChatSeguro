@@ -105,18 +105,34 @@ public class SDES
         return new byte[] { subKey1, subKey2 };
     }
 
-    public static byte[] Encrypt(string plaintext, string key)
+    public static byte[] Encrypt(string plaintext, string key, bool useCBC = false, byte[] iv = null)
     {
-        byte[] plaintextBytes = StringToByteArray(plaintext);
-        byte[] keyBytes = StringToByteArray(key);
+        byte[] plaintextBytes = Encoding.ASCII.GetBytes(plaintext);
+        byte[] keyBytes = Encoding.ASCII.GetBytes(key);
 
         byte[] encryptedBytes = new byte[plaintextBytes.Length];
 
+        byte previousBlock = 0x00;
+
         for (int i = 0; i < plaintextBytes.Length; i++)
         {
+            byte currentBlock = plaintextBytes[i];
+
+            if (useCBC)
+            {
+                if (iv != null && i == 0)
+                {
+                    currentBlock ^= iv[0];
+                }
+                else
+                {
+                    currentBlock ^= previousBlock;
+                }
+            }
+
             byte[] subKeys = GenerateSubKeys(keyBytes[0]);
 
-            byte permutedPlaintext = Permute(plaintextBytes[i], IP, BlockSize);
+            byte permutedPlaintext = Permute(currentBlock, IP, BlockSize);
             byte left, right;
             Split(permutedPlaintext, out left, out right, BlockSize / 2);
 
@@ -132,22 +148,29 @@ public class SDES
             byte encryptedBlock = Permute(swapped, IPInverse, BlockSize);
 
             encryptedBytes[i] = encryptedBlock;
+
+            previousBlock = encryptedBlock;
         }
 
         return encryptedBytes;
     }
 
-    public static string Decrypt(byte[] ciphertext, string key)
+
+    public static string Decrypt(byte[] ciphertext, string key, bool useCBC = false, byte[] iv = null)
     {
-        byte[] keyBytes = StringToByteArray(key);
+        byte[] keyBytes = Encoding.ASCII.GetBytes(key);
 
         byte[] decryptedBytes = new byte[ciphertext.Length];
 
+        byte previousBlock = 0x00;
+
         for (int i = 0; i < ciphertext.Length; i++)
         {
+            byte currentBlock = ciphertext[i];
+
             byte[] subKeys = GenerateSubKeys(keyBytes[0]);
 
-            byte permutedCiphertext = Permute(ciphertext[i], IP, BlockSize);
+            byte permutedCiphertext = Permute(currentBlock, IP, BlockSize);
             byte left, right;
             Split(permutedCiphertext, out left, out right, BlockSize / 2);
 
@@ -162,7 +185,21 @@ public class SDES
             byte swapped = Merge(right, left, BlockSize / 2);
             byte decryptedBlock = Permute(swapped, IPInverse, BlockSize);
 
+            if (useCBC)
+            {
+                if (iv != null && i == 0)
+                {
+                    decryptedBlock ^= iv[0];
+                }
+                else
+                {
+                    decryptedBlock ^= previousBlock;
+                }
+            }
+
             decryptedBytes[i] = decryptedBlock;
+
+            previousBlock = currentBlock;
         }
 
         return ByteArrayToString(decryptedBytes);
