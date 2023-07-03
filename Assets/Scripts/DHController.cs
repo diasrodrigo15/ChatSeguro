@@ -1,6 +1,5 @@
 using System;
-using System.Net;
-using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using TMPro;
@@ -11,10 +10,8 @@ public class DHController : MonoBehaviour
 {
     public event Action OnDhUsageChanged;
     
-    private const int DhListenPort = 3030;
+    private const int DhListenPort = 3000;
 
-    [SerializeField] private TextMeshProUGUI _ipAddress;
-    [SerializeField] private TextMeshProUGUI _errorMessage;
     [SerializeField] private Toggle _dhUsageToggle;
     [SerializeField] private Button _generateSessionButton;
     [SerializeField] private TextMeshProUGUI _sessionKeyLabel;
@@ -23,11 +20,11 @@ public class DHController : MonoBehaviour
     public byte[] SessionKey => _sessionKey;
 
     private DHKeyExchange _dhKeyExchange;
+    private Sender _sender;
+    private ChatController _chatController;
     private string _otherPublicKey;
     private byte[] _sessionKey = null;
 
-    private TcpListener _listener;
-    private bool _isListening = false;
     private bool _sendingMyKey;
 
     private void Awake()
@@ -39,17 +36,18 @@ public class DHController : MonoBehaviour
         _generateSessionButton.onClick.AddListener(GenerateSessionKey);
         _dhUsageToggle.onValueChanged.AddListener(HandleDhToggleChanged);
 
-        StartListening();
+        _sender = FindObjectOfType<Sender>();
+        _chatController = FindObjectOfType<ChatController>();
     }
 
     private void HandleDhToggleChanged(bool isOn)
     {
+        if (!isOn)
+        {
+            _sendingMyKey = false;
+        }
+ 
         UpdateDhUsage();
-    }
-
-    private void OnDisable()
-    {
-        StopListening();
     }
 
     private void UpdateDhUsage()
@@ -65,22 +63,34 @@ public class DHController : MonoBehaviour
         
         OnDhUsageChanged?.Invoke();
     }
-    
-    private byte[] StringToByteArray(string str)
-    {
-        return Encoding.UTF8.GetBytes(str);
-    }
 
-    private async void GenerateSessionKey()
+    private void GenerateSessionKey()
     {
         if (_sendingMyKey)
         {
             return;
         }
-
+ 
+        _sessionKeyLabel.enabled = true;
+        _sessionKeyLabel.text = "Gerando chave...";
         _sendingMyKey = true;
-        SendPublicKey(StringToByteArray(_dhKeyExchange.GetPublicKey()));
 
+        _sender.OnFinishedSent += HandleFinishSent;
+        byte[] encryptedMessage = _chatController.GetEncryptedMessage($"DH_{_dhKeyExchange.GetPublicKey()}");
+        _sender.SendDataInNetwork(encryptedMessage);
+    }
+
+    private async void HandleFinishSent(bool success)
+    {
+        _sender.OnFinishedSent -= HandleFinishSent;
+        if (!success)
+        {
+            _sendingMyKey = false;
+            _sessionKeyLabel.enabled = false;
+            return;
+        }
+
+        _sessionKeyLabel.text = "Aguardando chave do par...";
         while (string.IsNullOrEmpty(_otherPublicKey))
         {
             await Task.Yield();
@@ -90,113 +100,20 @@ public class DHController : MonoBehaviour
         _sendingMyKey = false;
         
         _sessionKey = _dhKeyExchange.DeriveSessionKey();
+        using (var sha256 = SHA256.Create())
+        {
+            _sessionKeyLabel.text = $"Chave: {Encoding.UTF8.GetString(sha256.ComputeHash(_sessionKey))}";
+        }
         OnDhUsageChanged?.Invoke();
     }
+    
 
-    private void SendPublicKey(byte[] data)
+    public void SetOtherPublicKey(string otherKey)
     {
-        try
+        _otherPublicKey = otherKey;
+        if (!_sendingMyKey)
         {
-            // Create a TCP client
-            TcpClient client = new TcpClient();
-
-            // Connect to the server
-            client.Connect(_ipAddress.text, DhListenPort);
-
-            // Get the network stream
-            NetworkStream stream = client.GetStream();
-
-            // Send the message
-            stream.Write(data, 0, data.Length);
-
-            // Close the stream and client
-            stream.Close();
-            client.Close();
-
-            _errorMessage.enabled = false;
-        }
-        catch (Exception e)
-        {
-            _errorMessage.enabled = true;
-            _errorMessage.text = "Couldn't exchange keys: " + e.Message;
+            GenerateSessionKey();
         }
     }
-
-    #region Receive Public Key
-
-    private void StartListening()
-    {
-        try
-        {
-            // Create a TCP listener
-            _listener = new TcpListener(IPAddress.Any, DhListenPort);
-
-            // Start listening for incoming connections
-            _listener.Start();
-            _isListening = true;
-
-            // Begin accepting client connections asynchronously
-            _listener.BeginAcceptTcpClient(OnClientConnected, null);
-
-            Debug.Log("Started listening for incoming messages...");
-        }
-        catch (Exception e)
-        {
-            Debug.LogError("Error starting listener: " + e.Message);
-        }
-    }
-
-    private void StopListening()
-    {
-        if (_isListening)
-        {
-            // Stop listening for incoming connections
-            _listener.Stop();
-            _isListening = false;
-
-            Debug.Log("Stopped listening for incoming messages.");
-        }
-    }
-
-    private void OnClientConnected(IAsyncResult ar)
-    {
-        try
-        {
-            // Accept the client connection
-            TcpClient client = _listener.EndAcceptTcpClient(ar);
-
-            // Start reading the incoming message asynchronously
-            NetworkStream stream = client.GetStream();
-            byte[] buffer = new byte[1024];
-            StringBuilder messageBuilder = new StringBuilder();
-
-            // Read the incoming message
-            int bytesRead;
-            do
-            {
-                bytesRead = stream.Read(buffer, 0, buffer.Length);
-                messageBuilder.Append(Encoding.UTF8.GetString(buffer, 0, bytesRead));
-            } while (stream.DataAvailable);
-
-            // Process the received message
-            _otherPublicKey = messageBuilder.ToString();
-            if (!_sendingMyKey)
-            {
-                GenerateSessionKey();
-            }
-
-            // Close the stream and client
-            stream.Close();
-            client.Close();
-
-            // Continue listening for more connections
-            _listener.BeginAcceptTcpClient(OnClientConnected, null);
-        }
-        catch (Exception e)
-        {
-            Debug.LogError("Error handling client connection: " + e.Message);
-        }
-    }
-
-    #endregion
 }

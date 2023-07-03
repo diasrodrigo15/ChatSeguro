@@ -14,8 +14,11 @@ public class Receiver : MonoBehaviour
     private TcpListener listener;
     private bool isListening = false;
 
-    private void Awake()
+    private DHController _dhController;
+
+    private void Start()
     {
+        _dhController = FindObjectOfType<DHController>();
         StartListening();
     }
 
@@ -86,8 +89,17 @@ public class Receiver : MonoBehaviour
             }
             while (stream.DataAvailable);
 
-            // Process the received message
-           _messagesContent.AddMessage(messageBuilder.ToString(), MessageType.Received);
+            if (messageBuilder.ToString().Contains("DH_"))
+            {
+                // update dh key
+                _dhController.SetOtherPublicKey(messageBuilder.ToString().Remove(0,3)); // remove DH_ from string
+                _messagesContent.AddMessage($"Recebido chave public do par", MessageType.Received);
+            }
+            else
+            {
+                // Print message in history
+                _messagesContent.AddMessage(messageBuilder.ToString(), MessageType.Received);
+            }
 
             // Close the stream and client
             stream.Close();

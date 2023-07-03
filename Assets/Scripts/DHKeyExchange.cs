@@ -17,7 +17,7 @@ public class DHKeyExchange
         {
             byte[] randomBytes = new byte[32];
             rng.GetBytes(randomBytes);
-            privateKey = new BigInteger(randomBytes).ToString();
+            privateKey =  BigInteger.Abs(new BigInteger(randomBytes)).ToString();
 
             BigInteger privateKeyBigInt = BigInteger.Parse(privateKey);
             publicKey = BigInteger.ModPow(Generator, privateKeyBigInt, Prime).ToString();
