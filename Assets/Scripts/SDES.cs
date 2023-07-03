@@ -105,10 +105,9 @@ public class SDES
         return new byte[] { subKey1, subKey2 };
     }
 
-    public static byte[] Encrypt(string plaintext, string key, bool useCBC = false, byte[] iv = null)
+    public static byte[] Encrypt(string plaintext, byte[] keyBytes, bool useCBC = false, byte[] iv = null)
     {
         byte[] plaintextBytes = Encoding.ASCII.GetBytes(plaintext);
-        byte[] keyBytes = Encoding.ASCII.GetBytes(key);
 
         byte[] encryptedBytes = new byte[plaintextBytes.Length];
 
@@ -156,10 +155,8 @@ public class SDES
     }
 
 
-    public static string Decrypt(byte[] ciphertext, string key, bool useCBC = false, byte[] iv = null)
+    public static string Decrypt(byte[] ciphertext, byte[] keyBytes, bool useCBC = false, byte[] iv = null)
     {
-        byte[] keyBytes = Encoding.ASCII.GetBytes(key);
-
         byte[] decryptedBytes = new byte[ciphertext.Length];
 
         byte previousBlock = 0x00;

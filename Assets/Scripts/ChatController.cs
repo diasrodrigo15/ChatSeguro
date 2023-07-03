@@ -18,21 +18,31 @@ public class ChatController : MonoBehaviour
     [SerializeField] private MessageContentGroup _messageContent;
     [SerializeField] private Button _sendButton;
     [SerializeField] private TextMeshProUGUI _errorMessage;
-    [SerializeField] private byte[] iv;
 
+    private DHController _dhController;
     private RC4 _rc4;
-    private byte[] _keyBytes;
+    private byte[] KeyBytes => 
+        _dhController.SessionKey == null || _dhController.SessionKey.Length == 0 ? 
+        System.Text.Encoding.UTF8.GetBytes(_key.text) :
+        _dhController.SessionKey;
 
     private void Awake()
     {
         _sendButton.onClick.AddListener(SendEncryptedMessage);
         _errorMessage.enabled = false;
+        _dhController = FindObjectOfType<DHController>();
+        _dhController.OnDhUsageChanged += UpdateUI;
+        UpdateUI();
     }
     
     private void SetupCyphers()
     {
-        _keyBytes = System.Text.Encoding.UTF8.GetBytes(_key.text);
-        _rc4 = new RC4(_keyBytes);
+        _rc4 = new RC4(KeyBytes);
+    }
+
+    private void UpdateUI()
+    {
+        _sendButton.interactable = _dhController.IsDhReady;
     }
 
     private void SendEncryptedMessage()
@@ -45,14 +55,14 @@ public class ChatController : MonoBehaviour
         {
             case SDES_OPTION:
             case EBC_OPTION:
-                encryptedMessage = SDES.Encrypt(message, _key.text);
+                encryptedMessage = SDES.Encrypt(message, KeyBytes);
                 break;
             case RC4_OPTION:
                 byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(message);
                 encryptedMessage = _rc4.Encrypt(messageBytes);
                 break;
             case CBC_OPTION:
-                encryptedMessage = SDES.Encrypt(message, _key.text, true);
+                encryptedMessage = SDES.Encrypt(message, KeyBytes, true);
                 break;
         }
 
@@ -101,12 +111,12 @@ public class ChatController : MonoBehaviour
         {
             case SDES_OPTION:
             case EBC_OPTION:
-                return SDES.Decrypt(encryptedMessage, _key.text);
+                return SDES.Decrypt(encryptedMessage, KeyBytes);
             case RC4_OPTION:
                 SetupCyphers();
                 return _rc4.Decrypt(encryptedMessage);
             case CBC_OPTION:
-                return SDES.Decrypt(encryptedMessage, _key.text, true);
+                return SDES.Decrypt(encryptedMessage, KeyBytes, true);
         }
 
         return "<color=Red>ERRO:</color> Não foi escolhido modo de cifra";
