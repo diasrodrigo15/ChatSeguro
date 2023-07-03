@@ -45,6 +45,8 @@ public class DHController : MonoBehaviour
         if (!isOn)
         {
             _sendingMyKey = false;
+            _sessionKey = null;
+            _otherPublicKey = string.Empty;
         }
  
         UpdateDhUsage();
@@ -98,15 +100,13 @@ public class DHController : MonoBehaviour
 
         _dhKeyExchange.CalculateSharedKey(_otherPublicKey);
         _sendingMyKey = false;
-        
+
         _sessionKey = _dhKeyExchange.DeriveSessionKey();
-        using (var sha256 = SHA256.Create())
-        {
-            _sessionKeyLabel.text = $"Chave: {Encoding.UTF8.GetString(sha256.ComputeHash(_sessionKey))}";
-        }
+        _sessionKeyLabel.text = $"Chave: {Encoding.UTF8.GetString(_sessionKey)}";
+
         OnDhUsageChanged?.Invoke();
     }
-    
+
 
     public void SetOtherPublicKey(string otherKey)
     {

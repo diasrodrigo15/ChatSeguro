@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using System.Security.Cryptography;
+using System.Text;
 
 public class DHKeyExchange
 {
@@ -39,24 +40,11 @@ public class DHKeyExchange
 
     public byte[] DeriveSessionKey()
     {
-        byte[] sharedKeyBytes = ConvertToByteArray(sharedKey);
-
-        using (var sha256 = SHA256.Create())
-        {
-            byte[] sessionKey = sha256.ComputeHash(sharedKeyBytes);
-            return sessionKey;
-        }
+        return ConvertToByteArray(sharedKey);
     }
 
     private byte[] ConvertToByteArray(string value)
     {
-        BigInteger bigInteger = BigInteger.Parse(value);
-        byte[] bytes = bigInteger.ToByteArray();
-
-        // Remove leading zero byte if present
-        if (bytes.Length > 0 && bytes[0] == 0x00)
-            Array.Copy(bytes, 1, bytes, 0, bytes.Length - 1);
-
-        return bytes;
+        return Encoding.UTF8.GetBytes(value);
     }
 }
